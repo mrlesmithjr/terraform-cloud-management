@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "terraform-cloud-management"
+version = "0.1.0"
+description = ""
+authors = ["Larry Smith Jr. <mrlesmithjr@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+[tool.poetry.dev-dependencies]
+flake8 = "^3.9.1"
+black = {version = "^20.8b1", allow-prereleases = true}
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
