@@ -13,13 +13,14 @@ import requests
 def cli_args():
     """Console script."""
     parser = argparse.ArgumentParser()
-    parser.add_argument('--email', required=True, help='Admin email')
-    parser.add_argument('--organization', required=True,
-                        help='Terraform Cloud organization')
-    parser.add_argument('--token', required=True,
-                        help='Terraform Cloud API token')
-    parser.add_argument('--workspace', required=True,
-                        help='Terraform Cloud organization workspace')
+    parser.add_argument("--email", required=True, help="Admin email")
+    parser.add_argument(
+        "--organization", required=True, help="Terraform Cloud organization"
+    )
+    parser.add_argument("--token", required=True, help="Terraform Cloud API token")
+    parser.add_argument(
+        "--workspace", required=True, help="Terraform Cloud organization workspace"
+    )
     args = parser.parse_args()
 
     return args
@@ -41,34 +42,37 @@ def main():
     workspace = args.workspace
 
     # Define Terraform Cloud API URL
-    api_url = 'https://app.terraform.io/api/v2'
+    api_url = "https://app.terraform.io/api/v2"
     # Define headers to use for requests
     headers = {
-        'Authorization': f'Bearer {token}',
-        'Content-Type': 'application/vnd.api+json'
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/vnd.api+json",
     }
 
     # Define organizations list and use for collection. Will be used more in the
     # future.
     organizations = []
     # Define API URL for organizations
-    url = f'{api_url}/organizations'
+    url = f"{api_url}/organizations"
 
     # Get all organizations
     request = requests.get(url, headers=headers)
     # Define data from JSON response data
-    data = request.json().get('data')
+    data = request.json().get("data")
 
     # Iterate through JSON data and append organization names to oranizations
     for item in data:
-        organizations.append(item['attributes']['name'])
+        organizations.append(item["attributes"]["name"])
 
     # If organization is not found, create it
     if organization not in organizations:
-        url = f'{api_url}/organizations'
-        payload = {'data': {'type': 'organizations',
-                            'attributes': {'name': organization,
-                                           'email': email}}}
+        url = f"{api_url}/organizations"
+        payload = {
+            "data": {
+                "type": "organizations",
+                "attributes": {"name": organization, "email": email},
+            }
+        }
 
         request = requests.post(url, headers=headers, json=payload)
 
@@ -79,22 +83,26 @@ def main():
             sys.exit(2)
 
     workspaces = []
-    url = f'{api_url}/organizations/{organization}/workspaces'
+    url = f"{api_url}/organizations/{organization}/workspaces"
     request = requests.get(url, headers=headers)
-    data = request.json().get('data')
+    data = request.json().get("data")
     for item in data:
-        workspaces.append(item['attributes']['name'])
+        workspaces.append(item["attributes"]["name"])
 
     # We account for development, staging and production
-    environments = ['development', 'staging', 'production']
+    environments = ["development", "staging", "production"]
 
     # Iterate over each environment defined in environments
     for environment in environments:
-        workspace_env = f'{workspace}-{environment}'
+        workspace_env = f"{workspace}-{environment}"
         if workspace_env not in workspaces:
-            url = f'{api_url}/organizations/{organization}/workspaces'
-            payload = {'data': {'type': 'workspaces', 'attributes': {
-                'name': workspace_env, 'operations': False}}}
+            url = f"{api_url}/organizations/{organization}/workspaces"
+            payload = {
+                "data": {
+                    "type": "workspaces",
+                    "attributes": {"name": workspace_env, "operations": False},
+                }
+            }
 
             request = requests.post(url, headers=headers, json=payload)
 
@@ -105,9 +113,10 @@ def main():
                 sys.exit(2)
 
         else:
-            url = f'{api_url}/organizations/{organization}/workspaces/{workspace_env}'
-            payload = {'data': {'type': 'workspaces',
-                                'attributes': {'operations': False}}}
+            url = f"{api_url}/organizations/{organization}/workspaces/{workspace_env}"
+            payload = {
+                "data": {"type": "workspaces", "attributes": {"operations": False}}
+            }
 
             request = requests.patch(url, json=payload, headers=headers)
 
