@@ -1,100 +1,114 @@
 #!/usr/bin/env python
-"""terraform_cloud_management.py"""
 
 # Just a little script to manage Terraform Cloud
 # https://www.terraform.io/docs/cloud/api/index.html"""
 
-
-import argparse
 import sys
 import requests
+import click
+
+# Define Terraform Cloud API URL
+API_URL = "https://app.terraform.io/api/v2"
 
 
-def cli_args():
-    """Console script."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--email', required=True, help='Admin email')
-    parser.add_argument('--organization', required=True,
-                        help='Terraform Cloud organization')
-    parser.add_argument('--token', required=True,
-                        help='Terraform Cloud API token')
-    parser.add_argument('--workspace', required=True,
-                        help='Terraform Cloud organization workspace')
-    args = parser.parse_args()
+def organizations(headers, organization, email):
+    """[summary]
 
-    return args
+    Args:
+        headers ([type]): [description]
+        organization ([type]): [description]
+        email ([type]): [description]
+    """
+
+    url = f"{API_URL}/organizations"
+    request = requests.get(url, headers=headers)
+
+    # Define data from JSON response data
+    data = request.json().get("data")
+
+    # Get list of all organizations
+    organizations = [org for org in data]
+
+    # Get list of just org names
+    org_names = [org["attributes"]["name"] for org in organizations]
+
+    # Add organization if not already found
+    if organization not in org_names:
+        add_org(headers, organization, email)
 
 
-def main():
-    """Main script execution"""
+def add_org(headers, organization, email):
+    """[summary]
 
-    # Get CLI args
-    args = cli_args()
+    Args:
+        headers ([type]): [description]
+        organization ([type]): [description]
+        email ([type]): [description]
+    """
 
-    # Get email from args
-    email = args.email
-    # Get organization from args
-    organization = args.organization
-    # Get API token from args
-    token = args.token
-    # Get workspace from args
-    workspace = args.workspace
-
-    # Define Terraform Cloud API URL
-    api_url = 'https://app.terraform.io/api/v2'
-    # Define headers to use for requests
-    headers = {
-        'Authorization': f'Bearer {token}',
-        'Content-Type': 'application/vnd.api+json'
+    url = f"{API_URL}/organizations"
+    payload = {
+        "data": {
+            "type": "organizations",
+            "attributes": {"name": organization, "email": email},
+        }
     }
 
-    # Define organizations list and use for collection. Will be used more in the
-    # future.
-    organizations = []
-    # Define API URL for organizations
-    url = f'{api_url}/organizations'
+    request = requests.post(url, headers=headers, json=payload)
 
-    # Get all organizations
+    try:
+        request.raise_for_status()
+        print(request.json())
+    except requests.exceptions.HTTPError as err:
+        print(str(err))
+        sys.exit(2)
+
+
+def workspaces(headers, organization):
+    """[summary]
+
+    Args:
+        headers ([type]): [description]
+        organization ([type]): [description]
+
+    Returns:
+        [type]: [description]
+    """
+
+    url = f"{API_URL}/organizations/{organization}/workspaces"
     request = requests.get(url, headers=headers)
-    # Define data from JSON response data
-    data = request.json().get('data')
+    data = request.json().get("data")
+    workspaces = [workspace for workspace in data]
+    workspace_names = [workspace["attributes"]["name"] for workspace in workspaces]
 
-    # Iterate through JSON data and append organization names to oranizations
-    for item in data:
-        organizations.append(item['attributes']['name'])
+    return workspace_names
 
-    # If organization is not found, create it
-    if organization not in organizations:
-        url = f'{api_url}/organizations'
-        payload = {'data': {'type': 'organizations',
-                            'attributes': {'name': organization,
-                                           'email': email}}}
 
-        request = requests.post(url, headers=headers, json=payload)
+def environments(headers, organization, workspace):
+    """[summary]
 
-        try:
-            request.raise_for_status()
-        except requests.exceptions.HTTPError as err:
-            print(str(err))
-            sys.exit(2)
+    Args:
+        headers ([type]): [description]
+        organization ([type]): [description]
+        workspace ([type]): [description]
+    """
 
-    workspaces = []
-    url = f'{api_url}/organizations/{organization}/workspaces'
-    request = requests.get(url, headers=headers)
-    data = request.json().get('data')
-    for item in data:
-        workspaces.append(item['attributes']['name'])
+    workspace_names = workspaces(headers, organization)
 
     # We account for development, staging and production
-    environments = ['development', 'staging', 'production']
+    environments = ["development", "staging", "production"]
 
     # Iterate over each environment defined in environments
     for environment in environments:
-        workspace_env = f'{workspace}-{environment}'
-        if workspace_env not in workspaces:
-            url = f'{api_url}/organizations/{organization}/workspaces'
-            payload = {'data': {'type': 'workspaces', 'attributes': {
-                'name': workspace_env, 'operations': False}}}
+        workspace_env = f"{workspace}-{environment}"
+        if workspace_env not in workspace_names:
+            url = f"{API_URL}/organizations/{organization}/workspaces"
+            payload = {
+                "data": {
+                    "type": "workspaces",
+                    "attributes": {"name": workspace_env, "operations": False},
+                }
+            }
 
             request = requests.post(url, headers=headers, json=payload)
 
@@ -105,9 +119,10 @@ def main():
                 sys.exit(2)
 
         else:
-            url = f'{api_url}/organizations/{organization}/workspaces/{workspace_env}'
-            payload = {'data': {'type': 'workspaces',
-                                'attributes': {'operations': False}}}
+            url = f"{API_URL}/organizations/{organization}/workspaces/{workspace_env}"
+            payload = {
+                "data": {"type": "workspaces", "attributes": {"operations": False}}
+            }
 
             request = requests.patch(url, json=payload, headers=headers)
 
@@ -116,6 +131,31 @@ def main():
             except requests.exceptions.HTTPError as err:
                 print(str(err))
                 sys.exit(2)
+
+
+@click.command()
+@click.option("--email", help="Admin email")
+@click.option("--organization", help="Terraform Cloud organization")
+@click.option("--token", required=True, help="Terraform Cloud API token")
+@click.option("--workspace", help="Terraform Cloud organization workspace")
+def main(email, organization, token, workspace):
+    """[summary]
+
+    Args:
+        email ([type]): [description]
+        organization ([type]): [description]
+        token ([type]): [description]
+        workspace ([type]): [description]
+    """
+
+    # Define headers to use for requests
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/vnd.api+json",
+    }
+
+    organizations(headers, organization, email)
+    environments(headers, organization, workspace)
 
 
 if __name__ == "__main__":
