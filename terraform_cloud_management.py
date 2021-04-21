@@ -142,7 +142,6 @@ def main(email, organization, token, workspace):
     """[summary]
 
     Args:
-        action ([type]): [description]
         email ([type]): [description]
         organization ([type]): [description]
         token ([type]): [description]
