@@ -21,20 +21,22 @@ def organizations(headers, organization, email):
     """
 
     url = f"{API_URL}/organizations"
-    request = requests.get(url, headers=headers)
 
-    # Define data from JSON response data
-    data = request.json().get("data")
+    try:
+        request = requests.get(url, headers=headers)
+        # Define data from JSON response data
+        data = request.json().get("data")
+        # Get list of all organizations
+        organizations = [org for org in data]
+        # Get list of just org names
+        org_names = [org["attributes"]["name"] for org in organizations]
+        # Add organization if not already found
+        if organization not in org_names:
+            add_org(headers, organization, email)
 
-    # Get list of all organizations
-    organizations = [org for org in data]
-
-    # Get list of just org names
-    org_names = [org["attributes"]["name"] for org in organizations]
-
-    # Add organization if not already found
-    if organization not in org_names:
-        add_org(headers, organization, email)
+    except requests.exceptions.HTTPError as err:
+        print(str(err))
+        sys.exit(2)
 
 
 def add_org(headers, organization, email):
@@ -54,11 +56,9 @@ def add_org(headers, organization, email):
         }
     }
 
-    request = requests.post(url, headers=headers, json=payload)
-
     try:
+        request = requests.post(url, headers=headers, json=payload)
         request.raise_for_status()
-        print(request.json())
     except requests.exceptions.HTTPError as err:
         print(str(err))
         sys.exit(2)
@@ -76,12 +76,16 @@ def workspaces(headers, organization):
     """
 
     url = f"{API_URL}/organizations/{organization}/workspaces"
-    request = requests.get(url, headers=headers)
-    data = request.json().get("data")
-    workspaces = [workspace for workspace in data]
-    workspace_names = [workspace["attributes"]["name"] for workspace in workspaces]
 
-    return workspace_names
+    try:
+        request = requests.get(url, headers=headers)
+        data = request.json().get("data")
+        workspaces = [workspace for workspace in data]
+        workspace_names = [workspace["attributes"]["name"] for workspace in workspaces]
+        return workspace_names
+    except requests.exceptions.HTTPError as err:
+        print(str(err))
+        sys.exit(2)
 
 
 def environments(headers, organization, workspace):
@@ -110,9 +114,8 @@ def environments(headers, organization, workspace):
                 }
             }
 
-            request = requests.post(url, headers=headers, json=payload)
-
             try:
+                request = requests.post(url, headers=headers, json=payload)
                 request.raise_for_status()
             except requests.exceptions.HTTPError as err:
                 print(str(err))
@@ -124,9 +127,8 @@ def environments(headers, organization, workspace):
                 "data": {"type": "workspaces", "attributes": {"operations": False}}
             }
 
-            request = requests.patch(url, json=payload, headers=headers)
-
             try:
+                request = requests.patch(url, json=payload, headers=headers)
                 request.raise_for_status()
             except requests.exceptions.HTTPError as err:
                 print(str(err))
